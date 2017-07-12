@@ -1,7 +1,7 @@
 {
   "name": "franchise-client",
-  "version": "0.1.3",
-  "description": "",
+  "version": "0.1.4",
+  "description": "database connectors for franchise",
   "main": "server.js",
   "bin": "./server.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/antimatter15/franchise-client.git"
   },
-  "author": "",
+  "author": "antimatter15",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/antimatter15/franchise-client/issues"
