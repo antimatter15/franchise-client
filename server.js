@@ -1,22 +1,54 @@
 #!/usr/bin/env node
 
-var WebSocket = require('ws');
-var port = parseInt('bat', 36); // 14645, as in batman (the movie franchise)
-var wss = new WebSocket.Server({ port: port });
+const WebSocket = require('ws');
+const port = parseInt('bat', 36); // 14645, as in batman (the movie franchise)
 
-wss.on('connection', function connection(ws) {
+const { Client } = require('pg')
+
+const wss = new WebSocket.Server({ port: port });
+
+wss.on('connection', ws => {
 	console.log('opened connection')
-	ws.on('message', function incoming(message) {
-		console.log('received: %s', message);
-		setTimeout(function(){
-			ws.send(JSON.stringify({
-				test: 'hello'
-			}));
-		}, 100)
-	});
-	ws.send(JSON.stringify({
-		ready: true
-	}));
-});
+	
+	ws.on('message', async message => {
+		console.log('received:', message);
 
-console.log("listening on port " + port)
+
+		message = JSON.parse(message)
+
+		const {action, id} = message
+		const reply = msg => ws.send(JSON.stringify(Object.assign({id}, msg)))
+
+		if(action === 'open'){
+			const {credentials} = message
+
+			console.log(credentials)
+
+			ws.client = new Client(credentials)
+
+			await ws.client.connect()
+
+			reply({ready: true})
+		} else if(action === 'exec'){
+			const {sql} = message
+
+			const results = await ws.client.query(sql)
+
+			reply({results})
+		}
+
+	})
+})
+
+
+
+async () => {
+
+	await client.connect()
+	// const res = await client.query('SELECT $1::text as message', ['Hello world!'])
+	// console.log(res.rows[0].message) // Hello world!
+	// await client.end()
+
+
+	console.log("listening on port " + port)	
+}
