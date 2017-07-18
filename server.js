@@ -22,18 +22,11 @@ wss.on('connection', ws => {
 		if(action === 'open'){
 			const {credentials} = message
 
-			console.log(credentials)
-
 			ws.client = new Client(credentials)
 
-			console.log('got them')
-
 			try {
-				console.log('A')
 				await new Promise((resolve, reject) => ws.client.connect(err => err ? reject() : resolve()))
-				console.log('B')
 			} catch(e) {
-				console.log('replying')
 				return reply({ready: false, error: e})
 			}
 
