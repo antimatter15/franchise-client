@@ -26,7 +26,16 @@ wss.on('connection', ws => {
 
 			ws.client = new Client(credentials)
 
-			await ws.client.connect()
+			console.log('got them')
+
+			try {
+				console.log('A')
+				await new Promise((resolve, reject) => ws.client.connect(err => err ? reject() : resolve()))
+				console.log('B')
+			} catch(e) {
+				console.log('replying')
+				return reply({ready: false, error: e})
+			}
 
 			reply({ready: true})
 		} else if(action === 'exec'){
