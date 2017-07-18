@@ -6,6 +6,7 @@ const port = parseInt('bat', 36); // 14645, as in batman (the movie franchise)
 const { Client } = require('pg')
 
 const wss = new WebSocket.Server({ port: port });
+console.log("listening on port " + port)	
 
 wss.on('connection', ws => {
 	console.log('opened connection')
@@ -34,23 +35,14 @@ wss.on('connection', ws => {
 		} else if(action === 'exec'){
 			const {sql} = message
 
-			const results = await ws.client.query(sql)
+			try {
+				const results = await ws.client.query(sql)
+				reply({results})
+			} catch (e) {
+				reply({error: e.stack.split('\n')[0]})
+			}
 
-			reply({results})
 		}
 
 	})
 })
-
-
-
-async () => {
-
-	await client.connect()
-	// const res = await client.query('SELECT $1::text as message', ['Hello world!'])
-	// console.log(res.rows[0].message) // Hello world!
-	// await client.end()
-
-
-	console.log("listening on port " + port)	
-}
