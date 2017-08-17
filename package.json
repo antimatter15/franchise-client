@@ -18,7 +18,9 @@
   },
   "homepage": "https://github.com/antimatter15/franchise-client#readme",
   "dependencies": {
-    "pg": "^6.4.1",
+    "@google-cloud/bigquery": "^0.9.6",
+    "pg": "^7.1.2",
+    "tmp": "^0.0.33",
     "ws": "^3.0.0"
   }
 }
