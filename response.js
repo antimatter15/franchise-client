@@ -19,7 +19,7 @@ module.exports = async function response(message, ctx=localCtx){
 			let createClient = 
 				  db === 'postgres' ? createPostgresClient
 				: db === 'bigquery' ? createBigQueryClient
-				: () => {throw new Error('database ' + bd + ' not recognized')}
+				: () => {throw new Error('database ' + db + ' not recognized')}
 
 			ctx.client = await createClient(credentials)
 			return {ready: true}
@@ -67,12 +67,14 @@ async function createPostgresClient(credentials){
 
 function createBigQueryClient(credentials){
 	if(credentials.keyFile){
+		const {name, data} = credentials.keyFile
 
-		const {path, fd} = tmp.fileSync()
-		fs.writeFileSync(fd, credentials.keyFile)
+		const {name: keyFilename, fd} = tmp.fileSync({postfix: name})
+		fs.writeFileSync(fd, Buffer.from(data, 'hex'))
 
-		credentials.keyFilename = path
+		credentials.keyFilename = keyFilename
 	}
+	console.log(credentials)
 	const client = new BigQueryClient(credentials)
 	return {
 		query: sql => client.query({query: sql}),
