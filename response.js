@@ -1,37 +1,81 @@
-const { Client } = require('pg')
+const {Client: PostgresClient} = require('pg')
+const BigQueryClient = require('@google-cloud/bigquery')
+const tmp = require('tmp')
+const fs = require('fs')
+
 const credentials = require('./credentials.js')
 
-let client;
 
-module.exports = async function handle(message){
+const localCtx = {}
+module.exports = async function response(message, ctx=localCtx){
 	const {action, id} = message
 
-	if(action === 'open') {
-		const {credentials} = message
+	try {
 
-		client = new Client(credentials)
+		if(action === 'open') {
+			const {credentials, db} = message
 
-		try {
-			await new Promise((resolve, reject) => client.connect(err => err ? reject(err.message) : resolve()))
-		} catch(e) {
-			return {ready: false, error: e}
-		}
+			// client = new Client(credentials)
+			let createClient = 
+				  db === 'postgres' ? createPostgresClient
+				: db === 'bigquery' ? createBigQueryClient
+				: () => {throw new Error('database ' + bd + ' not recognized')}
 
-		return {ready: true}
-	} else if(action === 'exec') {
-		const {sql} = message
+			ctx.client = await createClient(credentials)
+			return {ready: true}
 
-		try {
-			const results = await client.query(sql)
+		} else if(action === 'exec') {
+			const {sql} = message
+
+			const results = await ctx.client.query(sql)
 			return {results}
-		} catch (e) {
-			console.log(e)
-			return {error: e.stack.split('\n')[0]}
+
+		} else if(action === 'close') {
+			await ctx.client.close()
+
+			return {closed: true}
+
+		} else if(action == 'get_credentials') {
+
+			return credentials
+
 		}
 
-	} else if(action == 'get_credentials') {
+	} catch(e) {
+		console.log(e)
+		return {error: e.stack.split('\n')[0]}
+	}
+}
 
-		return credentials
 
+async function createPostgresClient(credentials){
+	const client = new PostgresClient(credentials)
+	await client.connect()
+	return {
+		async query(sql){
+			const results = await client.query({
+				text: sql,
+				rowMode: 'array'
+			})
+			if(results.rows.length > 10000)
+				throw new Error('Too many result rows to serialize: Try using a LIMIT statement.')
+			return results
+		},
+		close: client.end.bind(client)
+	}
+}
+
+function createBigQueryClient(credentials){
+	if(credentials.keyFile){
+
+		const {path, fd} = tmp.fileSync()
+		fs.writeFileSync(fd, credentials.keyFile)
+
+		credentials.keyFilename = path
+	}
+	const client = new BigQueryClient(credentials)
+	return {
+		query: sql => client.query({query: sql}),
+		close(){ console.log('no bigquery close method') }
 	}
 }

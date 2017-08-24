@@ -11,13 +11,15 @@ console.log("franchise-client listening on port", port)
 wss.on('connection', ws => {
 	console.log('opened connection')
 	
+	const ctx = {}
+
 	ws.on('message', async message => {
 		console.log('received:', message);
 
 		message = JSON.parse(message)
 		const {id} = message
 
-		const res = await response(message)
+		const res = await response(message, ctx)
 		
 		ws.send(JSON.stringify(Object.assign({id}, res)))
 
