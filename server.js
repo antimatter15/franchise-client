@@ -6,7 +6,7 @@ const port = parseInt('bat', 36); // 14645, as in batman (the movie franchise)
 const response = require('./response.js')
 
 const wss = new WebSocket.Server({ port });
-console.log("listening on port", port)
+console.log("franchise-client listening on port", port)
 
 wss.on('connection', ws => {
 	console.log('opened connection')
