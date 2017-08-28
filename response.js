@@ -1,4 +1,5 @@
-const {Client: PostgresClient} = require('pg')
+const { Client: PostgresClient } = require('pg')
+const mysql = require('mysql2/promise')
 const BigQueryClient = require('@google-cloud/bigquery')
 const tmp = require('tmp')
 const fs = require('fs')
@@ -8,45 +9,63 @@ const credentials = require('./credentials.js')
 
 const localCtx = {}
 module.exports = async function response(message, ctx=localCtx){
-	const {action, id} = message
+	const { action, id } = message
 
 	try {
-
 		if(action === 'open') {
-			const {credentials, db} = message
-
-			// client = new Client(credentials)
-			let createClient = 
-				  db === 'postgres' ? createPostgresClient
-				: db === 'bigquery' ? createBigQueryClient
-				: () => {throw new Error('database ' + bd + ' not recognized')}
-
-			ctx.client = await createClient(credentials)
-			return {ready: true}
-
+			const { credentials, db } = message
+			ctx.client = await createClient(db, credentials)
+			return { ready: true }
 		} else if(action === 'exec') {
 			const {sql} = message
-
 			const results = await ctx.client.query(sql)
 			return {results}
-
 		} else if(action === 'close') {
 			await ctx.client.close()
-
-			return {closed: true}
-
+			return { closed: true }
 		} else if(action == 'get_credentials') {
-
 			return credentials
-
 		}
-
 	} catch(e) {
 		console.log(e)
 		return {error: e.stack.split('\n')[0]}
 	}
 }
 
+
+async function createClient(db, credentials){
+	if(db === 'postgres') return await createPostgresClient(credentials);
+	if(db === 'bigquery') return await createBigQueryClient(credentials);
+	if(db === 'mysql') return await createMySQLClient(credentials);
+	throw new Error('database ' + db + ' not recognized')
+}
+
+
+async function createMySQLClient(credentials){
+	const client = await mysql.createConnection(credentials)
+	return {
+		async query(sql){
+			const [rows, fields] = await client.execute(sql);
+			console.log(rows, fields)
+			if(fields){
+				const field_list = fields.map(k => k.name);
+				return {
+					columns: field_list,
+					values: rows.map(row => field_list.map(k => row[k]))
+				}	
+			}else{
+				return {
+					columns: ['result'],
+					values: [[ rows ]]
+				}
+			}
+			
+		},
+		async close(){
+			return await client.end()
+		}
+	}
+}
 
 async function createPostgresClient(credentials){
 	const client = new PostgresClient(credentials)
