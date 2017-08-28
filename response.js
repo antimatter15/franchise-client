@@ -27,7 +27,7 @@ module.exports = async function response(message, ctx=localCtx){
         } else if(action === 'exec') {
             const {sql} = message
 
-            const results = await ctx.client.query(sql)
+            const results = await ctx.client.query(sql, message)
             return {results}
 
         } else if(action === 'close') {
@@ -83,6 +83,7 @@ module.exports = async function response(message, ctx=localCtx){
 
 async function createPostgresClient(credentials){
     const client = new PostgresClient(credentials)
+    ;[1082,1114,1184].forEach(oid => client.setTypeParser(oid, val => val))
     await client.connect()
     return {
         async query(sql){
@@ -110,7 +111,7 @@ function createBigQueryClient(credentials){
     console.log(credentials)
     const client = new BigQueryClient(credentials)
     return {
-        query: sql => client.query({query: sql}),
+        query: (sql, {useLegacySql}) => client.query({query: sql, useLegacySql}),
         getDatasets: () => client.getDatasets(),
         close(){ console.log('no bigquery close method') }
     }
