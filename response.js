@@ -115,10 +115,14 @@ async function createPostgresClient(credentials){
     await client.connect()
     return {
         async query(sql){
-            const results = await client.query({
+            let results = await client.query({
                 text: sql,
                 rowMode: 'array'
             })
+            if(Array.isArray(results)){
+                results = results[results.length - 1]
+            }
+            // console.log(results.rows, results)
             if(results.rows.length > 10000)
                 throw new Error('Too many result rows to serialize: Try using a LIMIT statement.')
             return results
