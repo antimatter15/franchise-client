@@ -1,4 +1,5 @@
-const {Client: PostgresClient} = require('pg')
+const { Client: PostgresClient } = require('pg')
+const mysql = require('mysql2/promise')
 const BigQueryClient = require('@google-cloud/bigquery')
 const tmp = require('tmp')
 const fs = require('fs')
@@ -15,13 +16,7 @@ module.exports = async function response(message, ctx=localCtx){
         if(action === 'open') {
             const {credentials, db} = message
 
-            // client = new Client(credentials)
-            let createClient = 
-                  db === 'postgres' ? createPostgresClient
-                : db === 'bigquery' ? createBigQueryClient
-                : () => {throw new Error('database ' + db + ' not recognized')}
-
-            ctx.client = await createClient(credentials)
+            ctx.client = await createClient(db, credentials)
             return {ready: true}
 
         } else if(action === 'exec') {
@@ -81,16 +76,54 @@ module.exports = async function response(message, ctx=localCtx){
 }
 
 
+async function createClient(db, credentials){
+	if(db === 'postgres') return await createPostgresClient(credentials);
+	if(db === 'bigquery') return await createBigQueryClient(credentials);
+	if(db === 'mysql') return await createMySQLClient(credentials);
+	throw new Error('database ' + db + ' not recognized')
+}
+
+
+async function createMySQLClient(credentials){
+	const client = await mysql.createConnection(credentials)
+	return {
+		async query(sql){
+			const [rows, fields] = await client.execute(sql);
+			console.log(rows, fields)
+			if(fields){
+				const field_list = fields.map(k => k.name);
+				return {
+					columns: field_list,
+					values: rows.map(row => field_list.map(k => row[k]))
+				}	
+			}else{
+				return {
+					columns: ['result'],
+					values: [[ rows ]]
+				}
+			}
+			
+		},
+		async close(){
+			return await client.end()
+		}
+	}
+}
+
 async function createPostgresClient(credentials){
     const client = new PostgresClient(credentials)
     ;[1082,1114,1184].forEach(oid => client.setTypeParser(oid, val => val))
     await client.connect()
     return {
         async query(sql){
-            const results = await client.query({
+            let results = await client.query({
                 text: sql,
                 rowMode: 'array'
             })
+            if(Array.isArray(results)){
+                results = results[results.length - 1]
+            }
+            // console.log(results.rows, results)
             if(results.rows.length > 10000)
                 throw new Error('Too many result rows to serialize: Try using a LIMIT statement.')
             return results
